@@ -48,7 +48,7 @@ int getNewOwnerId(const char *username) {
 
 void saveAccountToFile(FILE *ptr, struct User u, struct Record r)
 {
-    fprintf(ptr, "%d %d %s %d %d/%d/%d %s %s %.2lf %s\n\n",
+    fprintf(ptr, "%d %d %s %d %d/%d/%d %s %d %.2lf %s\n\n",
             r.id,
 	        u.id,
             u.name,
@@ -57,7 +57,7 @@ void saveAccountToFile(FILE *ptr, struct User u, struct Record r)
             r.deposit.day,
             r.deposit.year,
             r.country,
-            r.phoneStr,
+            r.phone,
             r.amount,
             r.accountType);
 }
@@ -124,13 +124,15 @@ invalid:
     }
 }
 
-void createNewAcc(struct User u) {
+void createNewAcc(struct User u)
+{
     struct Record r;
     struct Record cr;
     char userName[50];
     FILE *pf = fopen(RECORDS, "a+");
 
-    while (1) {
+    while (1)
+    {
         system("clear");
         printf("\t\t\t===== New record =====\n");
 
@@ -139,30 +141,33 @@ void createNewAcc(struct User u) {
 
         // Increment id for each user's account
         int highestAccountId = 0;
-        while (getAccountFromFile(pf, userName, &cr)) {
-            if (cr.id > highestAccountId) {
+        while (getAccountFromFile(pf, userName, &cr))
+        {
+            if (cr.id > highestAccountId)
+            {
                 highestAccountId = cr.id;
             }
         }
         r.id = highestAccountId + 1;
 
         printf("\nEnter the account number:");
-        char accountNumberStr[20];
-        scanf("%s", accountNumberStr);
-        r.accountNbr = atoi(accountNumberStr); // Convert the string to an integer
+        scanf("%d", &r.accountNbr);
 
         // Check if the account number is already used by any user
         rewind(pf);
         int accountExists = 0;
-        while (getAccountFromFile(pf, userName, &cr)) {
-            if (cr.accountNbr == r.accountNbr) {
-                printf("\n✖ This Account number is already used. Please wait...\n\n ");
+        while (getAccountFromFile(pf, userName, &cr))
+        {
+            if (cr.accountNbr == r.accountNbr)
+            {
+                printf("\n✖ This Account number is already used\n\n");
                 accountExists = 1;
                 break;
             }
         }
 
-        if (!accountExists) {
+        if (!accountExists)
+        {
             break; // If the account number is unique, break out of the loop
         }
 
@@ -172,12 +177,8 @@ void createNewAcc(struct User u) {
 
     printf("\nEnter the country:");
     scanf("%s", r.country);
-    // ...
     printf("\nEnter the phone number:");
-    char phoneNumberStr[20];
-    scanf("%s", phoneNumberStr);
-    strcpy(r.phoneStr, phoneNumberStr); // Copy the phone number as a string
-    // ...
+    scanf("%d", &r.phone);
     printf("\nEnter amount to deposit: $");
     scanf("%lf", &r.amount);
     printf("\nChoose the type of account:\n\t-> saving\n\t-> current\n\t-> fixed01(for 1 year)\n\t-> fixed02(for 2 years)\n\t-> fixed03(for 3 years)\n\n\tEnter your choice:");
@@ -188,7 +189,6 @@ void createNewAcc(struct User u) {
     fclose(pf);
     success(u);
 }
-
 
 
 
@@ -620,6 +620,7 @@ void transferOwner(struct User u) {
 
     success(u);
 }
+
 void makeTransaction(struct User u) {
     int accountNumber;
     char transactionType[10];
