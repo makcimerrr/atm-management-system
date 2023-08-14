@@ -18,6 +18,7 @@ struct Record
     char name[100];
     char country[100];
     int phone;
+    char phoneStr[20];
     char accountType[10];
     int accountNbr;
     double amount;
@@ -44,4 +45,6 @@ void checkInterest(struct User u);
 void updateAccountInfo(struct User u);
 void transferOwner(struct User u);
 int getUserIdFromUsername(const char *username);
+void makeTransaction(struct User u);
+void removeAccount(struct User u);
 

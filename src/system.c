@@ -30,9 +30,25 @@ int getAccountFromFile(FILE *ptr, char name[50], struct Record *r)
                   r->accountType) != EOF;
 }
 
+int getNewOwnerId(const char *username) {
+    FILE *userFile = fopen(USERS_FILE, "r");
+    if (userFile != NULL) {
+        int newOwnerId;
+        char existingUsername[50], existingPassword[50];
+        while (fscanf(userFile, "%d %s %s", &newOwnerId, existingUsername, existingPassword) == 3) {
+            if (strcmp(username, existingUsername) == 0) {
+                fclose(userFile);
+                return newOwnerId;
+            }
+        }
+        fclose(userFile);
+    }
+    return -1; // Invalid username
+}
+
 void saveAccountToFile(FILE *ptr, struct User u, struct Record r)
 {
-    fprintf(ptr, "%d %d %s %d %d/%d/%d %s %d %.2lf %s\n\n",
+    fprintf(ptr, "%d %d %s %d %d/%d/%d %s %s %.2lf %s\n\n",
             r.id,
 	        u.id,
             u.name,
@@ -41,7 +57,7 @@ void saveAccountToFile(FILE *ptr, struct User u, struct Record r)
             r.deposit.day,
             r.deposit.year,
             r.country,
-            r.phone,
+            r.phoneStr,
             r.amount,
             r.accountType);
 }
@@ -108,15 +124,13 @@ invalid:
     }
 }
 
-void createNewAcc(struct User u)
-{
+void createNewAcc(struct User u) {
     struct Record r;
     struct Record cr;
     char userName[50];
     FILE *pf = fopen(RECORDS, "a+");
 
-    while (1)
-    {
+    while (1) {
         system("clear");
         printf("\t\t\t===== New record =====\n");
 
@@ -125,33 +139,30 @@ void createNewAcc(struct User u)
 
         // Increment id for each user's account
         int highestAccountId = 0;
-        while (getAccountFromFile(pf, userName, &cr))
-        {
-            if (cr.id > highestAccountId)
-            {
+        while (getAccountFromFile(pf, userName, &cr)) {
+            if (cr.id > highestAccountId) {
                 highestAccountId = cr.id;
             }
         }
         r.id = highestAccountId + 1;
 
         printf("\nEnter the account number:");
-        scanf("%d", &r.accountNbr);
+        char accountNumberStr[20];
+        scanf("%s", accountNumberStr);
+        r.accountNbr = atoi(accountNumberStr); // Convert the string to an integer
 
         // Check if the account number is already used by any user
         rewind(pf);
         int accountExists = 0;
-        while (getAccountFromFile(pf, userName, &cr))
-        {
-            if (cr.accountNbr == r.accountNbr)
-            {
-                printf("\n✖ This Account number is already used\n\n");
+        while (getAccountFromFile(pf, userName, &cr)) {
+            if (cr.accountNbr == r.accountNbr) {
+                printf("\n✖ This Account number is already used. Please wait...\n\n ");
                 accountExists = 1;
                 break;
             }
         }
 
-        if (!accountExists)
-        {
+        if (!accountExists) {
             break; // If the account number is unique, break out of the loop
         }
 
@@ -161,8 +172,12 @@ void createNewAcc(struct User u)
 
     printf("\nEnter the country:");
     scanf("%s", r.country);
+    // ...
     printf("\nEnter the phone number:");
-    scanf("%d", &r.phone);
+    char phoneNumberStr[20];
+    scanf("%s", phoneNumberStr);
+    strcpy(r.phoneStr, phoneNumberStr); // Copy the phone number as a string
+    // ...
     printf("\nEnter amount to deposit: $");
     scanf("%lf", &r.amount);
     printf("\nChoose the type of account:\n\t-> saving\n\t-> current\n\t-> fixed01(for 1 year)\n\t-> fixed02(for 2 years)\n\t-> fixed03(for 3 years)\n\n\tEnter your choice:");
@@ -173,6 +188,7 @@ void createNewAcc(struct User u)
     fclose(pf);
     success(u);
 }
+
 
 
 
@@ -604,20 +620,259 @@ void transferOwner(struct User u) {
 
     success(u);
 }
+void makeTransaction(struct User u) {
+    int accountNumber;
+    char transactionType[10];
 
+    system("clear");
+    printf("\t\t====== Make Transaction =====\n\n");
 
-int getNewOwnerId(const char *username) {
-    FILE *userFile = fopen(USERS_FILE, "r");
-    if (userFile != NULL) {
-        int newOwnerId;
-        char existingUsername[50], existingPassword[50];
-        while (fscanf(userFile, "%d %s %s", &newOwnerId, existingUsername, existingPassword) == 3) {
-            if (strcmp(username, existingUsername) == 0) {
-                fclose(userFile);
-                return newOwnerId;
-            }
+    // Get account number
+    printf("Enter the account number: ");
+    scanf("%d", &accountNumber);
+
+    struct Record accounts[MAX_ACCOUNTS];
+    int numAccounts = 0;
+
+    FILE *pf = fopen(RECORDS, "r");
+
+    while (getAccountFromFile(pf, accounts[numAccounts].name, &accounts[numAccounts])) {
+        if (accounts[numAccounts].userId == u.id) {
+            numAccounts++;
         }
-        fclose(userFile);
     }
-    return -1; // Invalid username
+
+    fclose(pf);
+
+    int accountIndex = -1;
+    for (int i = 0; i < numAccounts; i++) {
+        if (accounts[i].accountNbr == accountNumber) {
+            accountIndex = i;
+            break;
+        }
+    }
+
+    if (accountIndex == -1) {
+        printf("\n✖ Account not found or you don't have permission to access this account.\n");
+        success(u);
+    }
+
+    printf("\n=========================\n");
+    printf("Owner: %s\n", accounts[accountIndex].name);
+    printf("Account number: %d\n", accounts[accountIndex].accountNbr);
+    printf("Current balance: $%.2f\n", accounts[accountIndex].amount);
+    printf("Type Of Account: %s\n", accounts[accountIndex].accountType);
+
+    if (strcmp(accounts[accountIndex].accountType, "fixed01") == 0 ||
+        strcmp(accounts[accountIndex].accountType, "fixed02") == 0 ||
+        strcmp(accounts[accountIndex].accountType, "fixed03") == 0) {
+        printf("\n✖ Cannot perform transactions on fixed-term accounts.\n");
+        success(u);
+    }
+
+    // Get transaction type (deposit or withdrawal)
+    printf("Enter transaction type (deposit/withdraw): ");
+    scanf("%s", transactionType);
+
+    if (strcmp(transactionType, "deposit") == 0) {
+        double amount;
+        printf("Enter the amount to deposit: $");
+        scanf("%lf", &amount);
+
+        if (amount <= 0) {
+            printf("\n✖ Invalid amount. Please enter a positive amount.\n");
+            success(u);
+        }
+
+        accounts[accountIndex].amount += amount;
+        printf("\n✔ Deposit successful! New balance: $%.2f\n", accounts[accountIndex].amount);
+    } else if (strcmp(transactionType, "withdraw") == 0) {
+        double amount;
+        printf("Enter the amount to withdraw: $");
+        scanf("%lf", &amount);
+
+        if (amount <= 0) {
+            printf("\n✖ Invalid amount. Please enter a positive amount.\n");
+            success(u);
+        }
+
+        if (strcmp(accounts[accountIndex].accountType, "fixed01") == 0 ||
+            strcmp(accounts[accountIndex].accountType, "fixed02") == 0 ||
+            strcmp(accounts[accountIndex].accountType, "fixed03") == 0) {
+            printf("\n✖ Cannot withdraw from fixed-term accounts.\n");
+            success(u);
+        }
+
+        if (amount > accounts[accountIndex].amount) {
+            printf("\n✖ Insufficient balance for withdrawal.\n");
+            success(u);
+        }
+
+        accounts[accountIndex].amount -= amount;
+        printf("\n✔ Withdrawal successful! New balance: $%.2f\n", accounts[accountIndex].amount);
+    } else {
+        printf("\n✖ Invalid transaction type. Please enter 'deposit' or 'withdraw'.\n");
+        success(u);
+    }
+
+    // Update account balance
+    FILE *pf_tmp = fopen("temp_records.txt", "w");
+    if (pf_tmp == NULL) {
+        printf("Error opening temporary file for writing.\n");
+        return;
+    }
+
+    pf = fopen(RECORDS, "r");
+    if (pf == NULL) {
+        printf("Error opening file for reading.\n");
+        fclose(pf_tmp);
+        return;
+    }
+
+    char line[1000];
+    while (fgets(line, sizeof(line), pf)) {
+        int id, userId, accountNbr, phone;
+        double amount;
+        char name[50], country[50], accountType[50];
+        int deposit_day, deposit_month, deposit_year;
+
+        sscanf(line, "%d %d %s %d %d/%d/%d %s %d %lf %s",
+               &id, &userId, name, &accountNbr, &deposit_month, &deposit_day, &deposit_year,
+               country, &phone, &amount, accountType);
+
+        if (accountNbr == accounts[accountIndex].accountNbr) {
+            amount = accounts[accountIndex].amount;
+            fprintf(pf_tmp, "%d %d %s %d %d/%d/%d %s %d %.2lf %s\n",
+                    id, userId, name, accountNbr, deposit_month, deposit_day, deposit_year,
+                    country, phone, amount, accountType);
+            break; // Write the modified line and stop processing further
+        } else {
+            fputs(line, pf_tmp);
+        }
+    }
+
+    // Write the remaining lines to the temporary file
+    while (fgets(line, sizeof(line), pf)) {
+        fputs(line, pf_tmp);
+    }
+
+    fclose(pf);
+    fclose(pf_tmp);
+
+    if (remove(RECORDS) != 0) {
+        printf("Error deleting original records file.\n");
+        return;
+    }
+
+    if (rename("temp_records.txt", RECORDS) != 0) {
+        printf("Error renaming temporary file to records file.\n");
+        return;
+    }
+
+    printf("=========================\n");
+
+    success(u);
+}
+
+void removeAccount(struct User u) {
+    int accountNumber;
+
+    system("clear");
+    printf("\t\t====== Remove Account =====\n\n");
+
+    // Get account number
+    printf("Enter the account number you want to remove: ");
+    scanf("%d", &accountNumber);
+
+    struct Record accounts[MAX_ACCOUNTS];
+    int numAccounts = 0;
+
+    FILE *pf = fopen(RECORDS, "r");
+
+    while (getAccountFromFile(pf, accounts[numAccounts].name, &accounts[numAccounts])) {
+        if (accounts[numAccounts].userId == u.id) {
+            numAccounts++;
+        }
+    }
+
+    fclose(pf);
+
+    int accountIndex = -1;
+    for (int i = 0; i < numAccounts; i++) {
+        if (accounts[i].accountNbr == accountNumber) {
+            accountIndex = i;
+            break;
+        }
+    }
+
+    if (accountIndex == -1) {
+        printf("\n✖ Account not found or you don't have permission to access this account.\n");
+        success(u);
+    }
+
+    printf("\n=========================\n");
+    printf("Owner: %s\n", accounts[accountIndex].name);
+    printf("Account number: %d\n", accounts[accountIndex].accountNbr);
+    printf("Current balance: $%.2f\n", accounts[accountIndex].amount);
+    printf("Type Of Account: %s\n", accounts[accountIndex].accountType);
+
+    // Confirm account deletion
+    char confirm[10];
+    printf("Are you sure you want to remove this account? (yes/no): ");
+    scanf("%s", confirm);
+
+    if (strcmp(confirm, "yes") != 0) {
+        printf("\nAccount removal cancelled.\n");
+        success(u);
+    }
+
+    // Update records file
+    FILE *pf_tmp = fopen("temp_records.txt", "w");
+    if (pf_tmp == NULL) {
+        printf("Error opening temporary file for writing.\n");
+        return;
+    }
+
+    pf = fopen(RECORDS, "r");
+    if (pf == NULL) {
+        printf("Error opening file for reading.\n");
+        fclose(pf_tmp);
+        return;
+    }
+
+    char line[1000];
+    while (fgets(line, sizeof(line), pf)) {
+        int id, userId, accountNbr, phone;
+        double amount;
+        char name[50], country[50], accountType[50];
+        int deposit_day, deposit_month, deposit_year;
+
+        sscanf(line, "%d %d %s %d %d/%d/%d %s %d %lf %s",
+               &id, &userId, name, &accountNbr, &deposit_month, &deposit_day, &deposit_year,
+               country, &phone, &amount, accountType);
+
+        if (accountNbr == accounts[accountIndex].accountNbr) {
+            continue; // Skip writing the line for the deleted account
+        } else {
+            fputs(line, pf_tmp);
+        }
+    }
+
+    fclose(pf);
+    fclose(pf_tmp);
+
+    if (remove(RECORDS) != 0) {
+        printf("Error deleting original records file.\n");
+        return;
+    }
+
+    if (rename("temp_records.txt", RECORDS) != 0) {
+        printf("Error renaming temporary file to records file.\n");
+        return;
+    }
+
+    printf("Account successfully removed.\n");
+    printf("=========================\n");
+
+    success(u);
 }
