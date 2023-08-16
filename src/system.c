@@ -200,7 +200,7 @@ void checkAllAccounts(struct User u)
     FILE *pf = fopen(RECORDS, "r");
 
     system("clear");
-    printf("\t\t====== All accounts from user, %s -> %d =====\n\n", u.name, u.id);
+    printf("\t\t====== All accounts from user, %s =====\n\n", u.name);
 
     int foundAccounts = 0; // Variable to track if any accounts were found for the user
 
@@ -396,12 +396,13 @@ void registration(struct User *u)
     }
 }
 
-void updateAccountInfo(struct User u)
-{
-    system("clear");
-    printf("\t\t====== Update information from user, %s =====\n\n", u.name);
+void updateAccountInfo(struct User u) {
     int accountNumber;
-    printf("\nEnter the account number you want to update: ");
+    int option;
+
+    system("clear");
+    printf("\t\t====== Update Account Info =====\n\n");
+    printf("Enter the account number you want to update: ");
     scanf("%d", &accountNumber);
 
     struct Record accounts[MAX_ACCOUNTS];
@@ -409,10 +410,8 @@ void updateAccountInfo(struct User u)
 
     FILE *pf = fopen(RECORDS, "r");
 
-    while (getAccountFromFile(pf, accounts[numAccounts].name, &accounts[numAccounts]))
-    {
-        if (accounts[numAccounts].userId == u.id)
-        {
+    while (getAccountFromFile(pf, accounts[numAccounts].name, &accounts[numAccounts])) {
+        if (accounts[numAccounts].userId == u.id) {
             numAccounts++;
         }
     }
@@ -420,17 +419,14 @@ void updateAccountInfo(struct User u)
     fclose(pf);
 
     int accountIndex = -1;
-    for (int i = 0; i < numAccounts; i++)
-    {
-        if (accounts[i].accountNbr == accountNumber)
-        {
+    for (int i = 0; i < numAccounts; i++) {
+        if (accounts[i].accountNbr == accountNumber) {
             accountIndex = i;
             break;
         }
     }
 
-    if (accountIndex == -1)
-    {
+    if (accountIndex == -1) {
         printf("\n✖ Account not found or you don't have permission to update this account.\n");
         success(u);
     }
@@ -444,46 +440,69 @@ void updateAccountInfo(struct User u)
     printf("Amount deposited: $%.2f\n", accounts[accountIndex].amount);
     printf("Type Of Account: %s\n", accounts[accountIndex].accountType);
 
-    int option;
-    do
-    {
+    do {
         printf("\nWhich field do you want to update?\n");
         printf("1. Country\n");
         printf("2. Phone number\n");
+        printf("3. Exit\n");
         printf("Enter your choice (1 or 2): ");
         scanf("%d", &option);
 
-        if (option == 1)
-        {
+        if (option == 1) {
             printf("\nEnter the new country: ");
             scanf("%s", accounts[accountIndex].country);
-        }
-        else if (option == 2)
-        {
+        } else if (option == 2) {
             printf("\nEnter the new phone number: ");
             scanf("%d", &accounts[accountIndex].phone);
+        } else {
+            printf("Invalid option. Please enter 1, 2, or 3.\n");
         }
-        else
-        {
-            printf("Invalid option. Please enter 1 or 2.\n");
-        }
-    } while (option != 1 && option != 2);
+    } while (option != 1 && option != 2 );
 
-    pf = fopen(RECORDS, "w");
-    if (pf == NULL)
-    {
-        printf("Error opening file for writing.\n");
+    // Create a temporary file to store the updated content
+    FILE *tempFile = fopen("temp_records.txt", "w");
+    if (tempFile == NULL) {
+        printf("Error creating temporary file.\n");
         return;
     }
 
-    for (int i = 0; i < numAccounts; i++)
-    {
-        saveAccountToFile(pf, u, accounts[i]);
+    // Write the original content to the temporary file, updating the specified account
+    pf = fopen(RECORDS, "r");
+    char line[500];
+    while (fgets(line, sizeof(line), pf) != NULL) {
+        int id;
+        sscanf(line, "%d", &id);
+        if (id == accounts[accountIndex].id) {
+            fprintf(tempFile, "%d %d %s %d %d/%d/%d %s %d %.2lf %s\n",
+                    accounts[accountIndex].id,
+                    accounts[accountIndex].userId,
+                    accounts[accountIndex].name,
+                    accounts[accountIndex].accountNbr,
+                    accounts[accountIndex].deposit.month,
+                    accounts[accountIndex].deposit.day,
+                    accounts[accountIndex].deposit.year,
+                    accounts[accountIndex].country,
+                    accounts[accountIndex].phone,
+                    accounts[accountIndex].amount,
+                    accounts[accountIndex].accountType);
+            accountIndex = -2; // Mark as written
+        } else {
+            fputs(line, tempFile);
+        }
     }
-
     fclose(pf);
 
-    printf("Account information updated successfully!\n");
+    fclose(tempFile);
+
+    // Replace the original file with the temporary file
+    remove(RECORDS);
+    rename("temp_records.txt", RECORDS);
+
+    if (accountIndex != -2) {
+        printf("\n✖ Account not found in the file.\n");
+    } else {
+        printf("\n✔ Account information updated successfully!\n");
+    }
     printf("=========================\n");
 
     success(u);
