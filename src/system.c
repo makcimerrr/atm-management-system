@@ -241,92 +241,99 @@ void checkInterest(struct User u)
     printf("\nEnter the account number you want to check: ");
     scanf("%d", &accountNumber);
 
-    double interest;
-    double interest2;
+    struct Record accounts[MAX_ACCOUNTS];
+    int numAccounts = 0;
 
-    struct Record r;
-    char userName[100];
     FILE *pf = fopen(RECORDS, "r");
 
-    int found = 0;
-
-    while (getAccountFromFile(pf, userName, &r))
-    {
-        if (r.accountNbr == accountNumber)
-        {
-            found = 1;
-            printf("\n=========================\n");
-            printf("Account number: %d\n", r.accountNbr);
-            printf("Deposit Date: %d/%d/%d\n", r.deposit.month, r.deposit.day, r.deposit.year);
-            printf("Country: %s\n", r.country);
-            printf("Phone number: %d\n", r.phone);
-            printf("Amount deposited: $%.2f\n", r.amount);
-            printf("Type Of Account: %s\n", r.accountType);
-
-            double interestRate = 0.0;
-            int timePeriod = 0;
-            int timeY = 0;
-
-            if (strcmp(r.accountType, "saving") == 0)
-            {
-                printf("Interest Rate: 0.07%% per year\n");
-                interestRate = 0.07;
-                timePeriod = 1; // 1 month (interest will be calculated monthly)  
-            }
-            else if (strcmp(r.accountType, "fixed01") == 0)
-            {
-                printf("Interest Rate: 0.04%% per year\n");
-                interestRate = 0.04;
-                timePeriod = 12; // 1 year (interest will be calculated monthly)
-                timeY = 1;
-            }
-            else if (strcmp(r.accountType, "fixed02") == 0)
-            {
-                printf("Interest Rate: 0.05%% per year\n");
-                interestRate = 0.05;
-                timePeriod = 24; // 2 years (interest will be calculated monthly)
-                timeY = 2;
-            }
-            else if (strcmp(r.accountType, "fixed03") == 0)
-            {
-                printf("Interest Rate: 0.08%% per year\n");
-                interestRate = 0.08;
-                timePeriod = 36; // 3 years (interest will be calculated monthly)
-                timeY = 3;
-            }
-            else if (strcmp(r.accountType, "current") == 0)
-            {
-                printf("You will not get interests because the account is of type current\n");
-            }
-
-            if (timePeriod > 11)
-            {
-                interest = r.amount * interestRate;
-                interest2 = interest * timeY;
-
-                printf("Interest Earned after %d months: $%.2f\n", timePeriod, interest2);
-            }
-            else if (timePeriod == 1)
-            {
-                interest = r.amount * interestRate;
-                interest2 = interest * (1. / 12.);
-                printf("Interest Earned on day %d of every month: $%.2f,\n", r.deposit.day, interest2);
-            }
-
-            printf("=========================\n");
-            break;
+    while (getAccountFromFile(pf, accounts[numAccounts].name, &accounts[numAccounts])) {
+        if (accounts[numAccounts].userId == u.id) {
+            numAccounts++;
         }
     }
 
     fclose(pf);
 
-    if (!found)
-    {
-        printf("\n✖ Account not found.\n");
+    int accountIndex = -1;
+    for (int i = 0; i < numAccounts; i++) {
+        if (accounts[i].accountNbr == accountNumber) {
+            accountIndex = i;
+            break;
+        }
     }
 
+    if (accountIndex == -1) {
+        printf("\n✖ Account not found or you don't have permission to access this account.\n");
+        success(u);
+        return; // Quitte la fonction si l'utilisateur n'est pas autorisé ou si le compte n'est pas trouvé.
+    }
+
+    struct Record r = accounts[accountIndex];
+    printf("\n=========================\n");
+    printf("Account number: %d\n", r.accountNbr);
+    printf("Deposit Date: %d/%d/%d\n", r.deposit.month, r.deposit.day, r.deposit.year);
+    printf("Country: %s\n", r.country);
+    printf("Phone number: %d\n", r.phone);
+    printf("Amount deposited: $%.2f\n", r.amount);
+    printf("Type Of Account: %s\n", r.accountType);
+
+    double interestRate = 0.0;
+    int timePeriod = 0;
+    int timeY = 0;
+
+    if (strcmp(r.accountType, "saving") == 0)
+    {
+        printf("Interest Rate: 0.07%% per year\n");
+        interestRate = 0.07;
+        timePeriod = 1; // 1 month (interest will be calculated monthly)
+    }
+    else if (strcmp(r.accountType, "fixed01") == 0)
+    {
+        printf("Interest Rate: 0.04%% per year\n");
+        interestRate = 0.04;
+        timePeriod = 12; // 1 year (interest will be calculated monthly)
+        timeY = 1;
+    }
+    else if (strcmp(r.accountType, "fixed02") == 0)
+    {
+        printf("Interest Rate: 0.05%% per year\n");
+        interestRate = 0.05;
+        timePeriod = 24; // 2 years (interest will be calculated monthly)
+        timeY = 2;
+    }
+    else if (strcmp(r.accountType, "fixed03") == 0)
+    {
+        printf("Interest Rate: 0.08%% per year\n");
+        interestRate = 0.08;
+        timePeriod = 36; // 3 years (interest will be calculated monthly)
+        timeY = 3;
+    }
+    else if (strcmp(r.accountType, "current") == 0)
+    {
+        printf("You will not get interests because the account is of type current\n");
+    }
+
+    double interest;
+    double interest2;
+
+    if (timePeriod > 11)
+    {
+        interest = r.amount * interestRate;
+        interest2 = interest * timeY;
+
+        printf("Interest Earned after %d months: $%.2f\n", timePeriod, interest2);
+    }
+    else if (timePeriod == 1)
+    {
+        interest = r.amount * interestRate;
+        interest2 = interest * (1. / 12.);
+        printf("Interest Earned on day %d of every month: $%.2f,\n", r.deposit.day, interest2);
+    }
+
+    printf("=========================\n");
     success(u);
 }
+
 
 void registration(struct User *u)
 {
